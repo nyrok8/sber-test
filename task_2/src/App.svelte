@@ -1,47 +1,31 @@
 <script lang="ts">
-  import { writable } from "svelte/store";
-  import type { Writable } from "svelte/store";
   import { onMount } from "svelte";
   import { codes } from "../public/codes";
   import { getExchangeRate } from "../public/api";
 
-  const base: Writable<string> = writable("USD");
-  const target: Writable<string> = writable("EUR");
+  $: base = {
+    code: "USD",
+    value: 1,
+  };
 
-  const baseValue: Writable<number> = writable(1);
-  const targetValue: Writable<number> = writable(1);
+  $: target = {
+    code: "EUR",
+    value: 1,
+  };
 
-  const rate: Writable<number> = writable(1);
+  $: rate = 1;
 
-  onMount(async () => {
-    rate.set(await getExchangeRate($base, $target));
-    targetValue.set($baseValue * $rate);
-  });
-
-  async function handleChange(e: Event, param: Writable<string>) {
-    param.set((e.target as HTMLInputElement).value);
-    rate.set(await getExchangeRate($base, $target));
-    targetValue.set($baseValue * $rate);
+  async function changeRate() {
+    rate = await getExchangeRate(base.code, target.code);
+    target.value = base.value * rate;
   }
 
-  function handleValueChange(e: Event, paramValue: Writable<number>) {
-    paramValue.set(parseFloat((e.target as HTMLInputElement).value));
-    switch (paramValue) {
-      case baseValue:
-        targetValue.set($baseValue * $rate);
-        break;
-      case targetValue:
-        baseValue.set($targetValue / $rate);
-        break;
-      default:
-        break;
-    }
-  }
+  onMount(changeRate);
 </script>
 
 <main>
   <div class="card">
-    <select bind:value={$base} on:change={(e) => handleChange(e, base)}>
+    <select bind:value={base.code} on:change={changeRate}>
       {#each codes as code}
         <option value={code}>{code}</option>
       {/each}
@@ -49,13 +33,15 @@
     <input
       type="number"
       min="0"
-      value={$baseValue}
-      on:input={(e) => handleValueChange(e, baseValue)}
+      bind:value={base.value}
+      on:input={() => {
+        target.value = base.value * rate;
+      }}
     />
   </div>
 
   <div class="card">
-    <select bind:value={$target} on:change={(e) => handleChange(e, target)}>
+    <select bind:value={target.code} on:change={changeRate}>
       {#each codes as code}
         <option value={code}>{code}</option>
       {/each}
@@ -63,8 +49,10 @@
     <input
       type="number"
       min="0"
-      value={$targetValue}
-      on:input={(e) => handleValueChange(e, targetValue)}
+      bind:value={target.value}
+      on:input={() => {
+        base.value = target.value / rate;
+      }}
     />
   </div>
 </main>
